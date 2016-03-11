@@ -4,25 +4,84 @@ Created on Mar 4, 2016
 @author: rsong_admin
 '''
 import numpy as np
+import csv
 import pandas as pd
 import matplotlib.pylab as plt
 from matplotlib import style
+
 style.use('ggplot')
 
+class vintage_market:
+    '''
+    A wrapper class to deal with the situation with multiply market
+    '''
+    def __init__(self,production_data, market_data_file):
+        self.year_and_prod = production_data
+        self.tot_prod = production_data[:,1]
+        self.years = production_data[:,0]
+        ''' split market data '''
+        self._market_splitter(market_data_file)
+        
+    def _market_splitter(self,market_data_file):
+        '''
+        market data file reader
+        
+        Input -- market data file, the first column is the name of the sector
+                 the second column is the percentage of each sector
+        Return -- A dictionary contain sector name and break down
+        '''
+        with open(market_data_file,'rU') as myfile:
+            this_reader = csv.reader(myfile)
+            ''' row[0] is the sector name; row[1] percentage; row[2] average_lifetime '''
+
+            self.market_dict = {rows[0]:[rows[1],rows[2]] for rows in this_reader}
+            
+        self.prod_dict = {}
+        for each_mak, each_val in self.market_dict.iteritems():
+            ''' create a dictionary that contain the production data flows into each market
+                for example : Buildings: 89000*45% tons
+                each_val[0] is the percentage
+            '''
+            this_mark_year_prod = self.year_and_prod
+            this_mark_year_prod[:,1] = this_mark_year_prod[:,1]*float(each_val[0])
+            self.prod_dict[each_mak] = [this_mark_year_prod]  
+
+          
+    def calculate_market_vintage(self):
+        '''
+        wrapper function to call the vintage class by market share
+        '''
+        assert self.prod_dict is not None
+        self.market_vintage_results = {}
+
+        for each_mak, each_val in self.prod_dict.iteritems():
+            this_lifetime = self.market_dict[each_mak][1]
+            print this_lifetime
+            raw_input()
+            this_prod_data = each_val[0]
+            this_market = vintage(this_prod_data,this_lifetime)
+            this_vintage = this_market.calculate_vintage()
+            self.market_vintage_results[each_mak] = this_vintage 
+        return self.market_vintage_results
+        
 class vintage:
     '''
     A vintage model to calculate the cumulative 
     In use and end-of-life release
-    for one nano material
+    for one nano material 
+    
+    FOR A SINGLE MARKET
     
     The input file must be the annual production data
-    The first colunm is the year and the second colunm is the production in ton
+    The first column is the year and the second column is the production in ton
     '''
     def __init__(self, production_data, average_lifetime):
         self.prod_data = production_data
         self.in_use_rate = 0.1 #assume 10% in use release of this material
+        
         self.year = self.prod_data[:,0]
         self.year_production = self.prod_data[:,1]
+        
         self.num_year = len(self.year)
         self.x = float(average_lifetime) # The average lifetime for the weibull distribution. Fixed at this time
         self.shape = 5.0 # The shape parameter for weibull distribution, fixed to 5 at this time. Need to know why later
@@ -35,6 +94,7 @@ class vintage:
         base on the stock size of the year before it.
         '''
         return stock_last * in_use_release_rate
+    
     
     def vintage_for_year(self,data_of_year, year):
         '''
@@ -134,8 +194,11 @@ class vintage:
     
 if __name__ == '__main__':
     tiO2_data = np.loadtxt('./data/TiO2_market_real.csv',delimiter=',')
-    tiO2 = vintage(tiO2_data,10)
-    test_results = tiO2.calculate_vintage()
-    tiO2.plot_vintage()
-    
 
+#     tiO2 = vintage(tiO2_data,10)
+#     test_results = tiO2.calculate_vintage()
+#     tiO2.plot_vintage()
+    
+    tiO2_market = vintage_market(tiO2_data,'./data/TiO2_market_fake.csv')
+    test = tiO2_market.calculate_market_vintage()
+    print test
