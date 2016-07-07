@@ -40,7 +40,6 @@ def calculate_defult_SiO2():
     SiO2_market.plot_market_vintage()
     df.to_csv('./results/SiO2_vintage_results.csv')
 
-
 def do_shake_lifetime():
     data = './data/SiO2_production_real.csv'
     market = './data/coating_market_fake.csv'

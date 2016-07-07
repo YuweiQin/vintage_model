@@ -40,14 +40,12 @@ def calculate_defult_TiO2():
     TiO2_market = vintage_model.vintage_market(TiO2_data,market_data_dict)
     test = TiO2_market.calculate_market_vintage()
     print np.sum(test['Household & Furniture']['In Use'] + test['Household & Furniture']['End of Life'])
-    raw_input()
     
     # save the results to data frame and plot the market figure
     df = TiO2_market.to_dataframe(test)
     df.to_csv('./results/TiO2_vintage_results.csv')
     TiO2_market.plot_market_vintage()
     
-
 def do_shake_lifetime():
     data = './data/TiO2_production_real.csv'
     market = './data/coating_market_fake.csv'

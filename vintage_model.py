@@ -64,6 +64,7 @@ class vintage_market:
             this_lifetime = self.market_dict[each_mak][1]
             this_in_use = self.market_dict[each_mak][2]
             this_prod_data = each_val
+            
             this_market = vintage(this_prod_data,this_lifetime,this_in_use)
             this_vintage = this_market.calculate_vintage()
             self.market_vintage_results[each_mak] = this_vintage 
@@ -156,9 +157,11 @@ class vintage:
     The input file must be the annual production data
     The first column is the year and the second column is the production in ton
     '''
-    def __init__(self, production_data, average_lifetime, in_use_release):
+    def __init__(self, production_data, average_lifetime, in_use_release, manufacturing_release=0.02):
         self.prod_data = production_data
         self.in_use_rate = float(in_use_release) #assume 10% in use release of this material
+        
+        self.manu_release = manufacturing_release # the amount that being released during manufacturing 
         
         self.year = self.prod_data[:,0]
         self.year_production = self.prod_data[:,1]
@@ -177,6 +180,11 @@ class vintage:
         '''
         return stock_last * in_use_release_rate
     
+    def _manu_release(self, prod_year, manu_release_rate):
+        '''
+        calculate the manufacturing release based on the production of this year
+        '''
+        return (prod_year/(1-manu_release_rate)) - prod_year
     
     def vintage_for_year(self,data_of_year, year):
         '''
@@ -197,14 +205,20 @@ class vintage:
         
         year_in_use = np.zeros(self.num_year)
         year_end_of_life = np.zeros(self.num_year)
+        year_manu = np.zeros(self.num_year)
         year_stock = np.zeros(self.num_year)
-        init_stock = data_of_year # This is the initial stock size
+        
+        # in use release during application, assume 10% release during the first time of application
+        in_use_during_app = data_of_year * 0.1
+        
+        init_stock = data_of_year * (1-0.1) # This is the initial stock size
         year_stock[number_of_year] = init_stock # initilize
+        year_in_use[number_of_year] = in_use_during_app # the first in use release happened at the first year
         
         for this_year in range(int(year), int(self.end_year)):
+            
             year_count = this_year - int(year)
    
-            
             i = this_year - self.start_year
             i = int(i+1) # starting from the next year after the init year
 
@@ -220,8 +234,7 @@ class vintage:
             year_end_of_life[i] = this_end_of_life
             year_stock[i] = year_stock[i-1] - this_total_release
 
-        year_dict = {'In Use':year_in_use,"End of Life":year_end_of_life,"Stock":year_stock}
-        
+        year_dict = {'In Use':year_in_use,"End of Life":year_end_of_life,"Manufacturing Release":year_manu,"Stock":year_stock}
         return year_dict
     
     def calculate_vintage(self):
@@ -233,15 +246,18 @@ class vintage:
         acc_stock = np.zeros(self.num_year)
         acc_in_use_release = np.zeros(self.num_year)
         acc_end_of_life_release = np.zeros(self.num_year)
+        acc_manu_release = np.zeros(self.num_year)
 #         acc_stock = {}
 #         acc_in_use_release = {}
 #         acc_end_of_life_release = {}
         
         for i in range(int(self.num_year)):
             this_year = int(self.prod_data[i,0])
+            
 #             print 'Working on Year ', this_year
             this_year_data = self.prod_data[i,1]
             this_year_vintage = self.vintage_for_year(this_year_data, this_year)
+                        
             # add this year vintage to the total vintage dictionary, so that we can query each individual vintage later
             self.total_vintage[this_year] = this_year_vintage
             
@@ -254,8 +270,13 @@ class vintage:
             # ...the end_of_life
             acc_end_of_life_release += this_year_vintage['End of Life']
 #             acc_end_of_life_release[str(this_year)] = acc_end_of_life_release.get(this_year,0) + this_year_vintage['End of Life']
+            
+            # ...the manufacturing release
+            this_manufacturing_release = self._manu_release(this_year_data, self.manu_release)
+            acc_manu_release[i] = this_manufacturing_release
+            
+        self.acc_vintage ={'Stock':acc_stock, 'In Use':acc_in_use_release,'End of Life':acc_end_of_life_release, 'Manufacturing Release':acc_manu_release}
         
-        self.acc_vintage ={'Stock':acc_stock, 'In Use':acc_in_use_release,'End of Life':acc_end_of_life_release}
         return self.acc_vintage
             
     def weib(self,x,n,a):
@@ -288,11 +309,4 @@ class vintage:
         plt.show()
     
 if __name__ == '__main__':
-    tiO2_data = np.loadtxt('./data/TiO2_production_real.csv',delimiter=',')
-#     tiO2 = vintage(tiO2_data,10)
-#     test_results = tiO2.calculate_vintage()
-#     tiO2.plot_vintage()
-    
-    tiO2_market = vintage_market(tiO2_data,'./data/coating_market_fake.csv')
-    test = tiO2_market.calculate_market_vintage()
-    tiO2_market.plot_market_vintage()
+    pass
